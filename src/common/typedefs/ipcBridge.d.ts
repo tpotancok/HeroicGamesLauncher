@@ -1,4 +1,4 @@
-import { DownloadManagerState } from './../types'
+import { BottlesType, DownloadManagerState } from './../types'
 import { EventEmitter } from 'node:events'
 import { IpcMainEvent, OpenDialogOptions } from 'electron'
 
@@ -261,6 +261,9 @@ interface AsyncIPCFunctions {
     appName: string
   ) => Promise<number | undefined>
   getAmazonLoginData: () => Promise<NileLoginData>
+  getBottlesNames: (bottlesType: BottlesType) => Promise<string[]>
+  validWine: (wineVersion: WineInstallation) => Promise<bool>
+  openBottles: (bottlesType: BottlesType, bottle?: string) => Promise<void>
 }
 
 // This is quite ugly & throws a lot of errors in a regular .ts file

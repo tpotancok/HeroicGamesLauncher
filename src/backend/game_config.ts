@@ -13,6 +13,7 @@ import {
 } from './constants'
 import { logError, logInfo, LogPrefix } from './logger/logger'
 import { join } from 'path'
+import { getBottlesNames } from './bottles/utils'
 
 /**
  * This class does config handling for games.
@@ -276,6 +277,21 @@ class GameConfigV0 extends GameConfig {
       // fix winePrefix if needed
       if (gameSettings.winePrefix?.includes('~')) {
         gameSettings.winePrefix = gameSettings.winePrefix.replace('~', userHome)
+      }
+
+      // use first bottle if not already set
+      if (!gameSettings.bottlesBottle) {
+        const alternativeWine = await GlobalConfig.get().getAlternativeWine()
+        const bottlesWine = alternativeWine.filter(
+          (value) => value.type === 'bottles'
+        )[0]
+        if (bottlesWine) {
+          const bottles = await getBottlesNames(bottlesWine.subtype!)
+          gameSettings.bottlesBottle = bottles[0]
+          logInfo(['set bottle to default:', gameSettings.bottlesBottle], {
+            prefix: LogPrefix.Backend
+          })
+        }
       }
     }
 

@@ -4,7 +4,9 @@ import {
   ToolArgs,
   WineVersionInfo,
   ProgressInfo,
-  State
+  State,
+  BottlesType,
+  WineInstallation
 } from 'common/types'
 
 export const toggleDXVK = async (args: ToolArgs) =>
@@ -65,3 +67,17 @@ export const handleWineVersionsUpdated = (
     ipcRenderer.removeListener('wineVersionsUpdated', callback)
   }
 }
+
+export const validWine = async (
+  wineVersion: WineInstallation
+): Promise<boolean> => ipcRenderer.invoke('validWine', wineVersion)
+
+// Bottles
+export const getBottlesNames = async (
+  bottlesType: BottlesType
+): Promise<string[]> => ipcRenderer.invoke('getBottlesNames', bottlesType)
+
+export const openBottles = async (
+  bottlesType: BottlesType,
+  bottle?: string
+): Promise<void> => ipcRenderer.invoke('openBottles', bottlesType, bottle)

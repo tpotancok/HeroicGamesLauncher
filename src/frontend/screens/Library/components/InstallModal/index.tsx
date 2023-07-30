@@ -47,6 +47,7 @@ export default React.memo(function InstallModal({
   const [wineVersion, setWineVersion] = useState<WineInstallation>()
   const [wineVersionList, setWineVersionList] = useState<WineInstallation[]>([])
   const [crossoverBottle, setCrossoverBottle] = useState('')
+  const [bottlesBottle, setBottlesBottle] = useState('')
 
   const isLinuxNative = Boolean(gameInfo?.is_linux_native)
   const isMacNative = Boolean(gameInfo?.is_mac_native)
@@ -171,6 +172,7 @@ export default React.memo(function InstallModal({
             platformToInstall={platformToInstall}
             gameInfo={gameInfo}
             crossoverBottle={crossoverBottle}
+            bottlesBottle={bottlesBottle}
           >
             {platformSelection()}
             {hasWine ? (
@@ -183,6 +185,8 @@ export default React.memo(function InstallModal({
                 setWineVersion={setWineVersion}
                 crossoverBottle={crossoverBottle}
                 setCrossoverBottle={setCrossoverBottle}
+                bottlesBottle={bottlesBottle}
+                setBottlesBottle={setBottlesBottle}
               />
             ) : null}
           </DownloadDialog>
@@ -196,6 +200,7 @@ export default React.memo(function InstallModal({
             platformToInstall={platformToInstall}
             appName={appName}
             crossoverBottle={crossoverBottle}
+            bottlesBottle={bottlesBottle}
           >
             {platformSelection()}
             {hasWine ? (
@@ -207,6 +212,8 @@ export default React.memo(function InstallModal({
                 setWineVersion={setWineVersion}
                 crossoverBottle={crossoverBottle}
                 setCrossoverBottle={setCrossoverBottle}
+                bottlesBottle={bottlesBottle}
+                setBottlesBottle={setBottlesBottle}
               />
             ) : null}
           </SideloadDialog>

@@ -1,7 +1,9 @@
+import { runBottlesCommand } from 'backend/bottles/utils'
 import { GlobalConfig } from 'backend/config'
 import {
   configPath,
   getSteamLibraries,
+  isLinux,
   isMac,
   toolsPath,
   userHome
@@ -188,7 +190,15 @@ export async function getLinuxWineSet(
     customWineSet = getCustomWinePaths()
   }
 
-  return new Set([...defaultWineSet, ...altWine, ...proton, ...customWineSet])
+  const bottles = await getBottles()
+
+  return new Set([
+    ...defaultWineSet,
+    ...altWine,
+    ...proton,
+    ...customWineSet,
+    ...bottles
+  ])
 }
 
 /// --------------- MACOS ------------------
@@ -386,4 +396,44 @@ export function getWineFlags(
     default:
       return []
   }
+}
+
+/**
+ * Find Bottles version
+ * @returns WineInstallation of bottles
+ */
+async function getBottles(): Promise<Set<WineInstallation>> {
+  const bottles = new Set<WineInstallation>()
+  if (!isLinux) return bottles
+
+  // Check if bottles are installed through distro package manager
+  const distroVersion = await runBottlesCommand(['--version'], 'native').catch(
+    () => null
+  )
+
+  if (!distroVersion?.error) {
+    bottles.add({
+      name: `Bottles - native`,
+      type: 'bottles',
+      bin: 'bottles',
+      subtype: 'native'
+    })
+    return bottles
+  } else {
+    // Check if bottles are installed through Flatpak
+    const FlatpakVersion = await runBottlesCommand(
+      ['--version'],
+      'flatpak'
+    ).catch(() => null)
+    if (!FlatpakVersion?.error) {
+      bottles.add({
+        name: `Bottles - flatpak`,
+        type: 'bottles',
+        bin: 'flatpak',
+        subtype: 'flatpak'
+      })
+      return bottles
+    }
+  }
+  return bottles
 }

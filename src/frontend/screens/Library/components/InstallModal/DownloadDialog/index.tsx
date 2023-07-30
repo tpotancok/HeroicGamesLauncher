@@ -56,6 +56,7 @@ interface Props {
   availablePlatforms: AvailablePlatforms
   winePrefix: string
   crossoverBottle: string
+  bottlesBottle: string
   wineVersion: WineInstallation | undefined
   children: React.ReactNode
   gameInfo: GameInfo
@@ -114,7 +115,8 @@ export default function DownloadDialog({
   wineVersion,
   children,
   gameInfo,
-  crossoverBottle
+  crossoverBottle,
+  bottlesBottle
 }: Props) {
   const previousProgress = JSON.parse(
     storage.getItem(appName) || '{}'
@@ -201,7 +203,8 @@ export default function DownloadDialog({
             ...gameSettings,
             winePrefix,
             wineVersion,
-            wineCrossoverBottle: crossoverBottle
+            wineCrossoverBottle: crossoverBottle,
+            bottlesBottle
           }
         })
       }

@@ -1,4 +1,5 @@
 import {
+  BottleSelect,
   SelectField,
   ToggleSwitch,
   TextInputField,
@@ -15,8 +16,10 @@ type Props = {
   >
   setWinePrefix: React.Dispatch<React.SetStateAction<string>>
   setCrossoverBottle: React.Dispatch<React.SetStateAction<string>>
+  setBottlesBottle: React.Dispatch<React.SetStateAction<string>>
   winePrefix: string
   crossoverBottle: string
+  bottlesBottle: string
   wineVersionList: WineInstallation[]
   wineVersion: WineInstallation | undefined
   title?: string
@@ -30,7 +33,9 @@ export default function WineSelector({
   wineVersion,
   title = 'sideload',
   crossoverBottle,
-  setCrossoverBottle
+  setCrossoverBottle,
+  bottlesBottle,
+  setBottlesBottle
 }: Props) {
   const { t } = useTranslation('gamepage')
 
@@ -43,7 +48,8 @@ export default function WineSelector({
         defaultWinePrefix: prefixFolder,
         wineVersion,
         winePrefix: defaultPrefix,
-        wineCrossoverBottle: defaultBottle
+        wineCrossoverBottle: defaultBottle,
+        bottlesBottle: defaultLinuxBottle
       } = await window.api.requestAppSettings()
 
       if (!wineVersion || !defaultPrefix || !defaultBottle) return
@@ -55,23 +61,30 @@ export default function WineSelector({
         return setCrossoverBottle(defaultBottle)
       }
 
+      if (!useDefaultSettings && wineVersion.type === 'bottles') {
+        return setBottlesBottle(defaultLinuxBottle)
+      }
+
       if (useDefaultSettings) {
         setWinePrefix(defaultPrefix)
         setWineVersion(wineVersion)
         setCrossoverBottle(defaultBottle)
+        setBottlesBottle(defaultLinuxBottle)
       } else {
-        const sugestedWinePrefix = `${prefixFolder}/${removeSpecialcharacters(
+        const suggestedWinePrefix = `${prefixFolder}/${removeSpecialcharacters(
           title
         )}`
-        setWinePrefix(sugestedWinePrefix)
+        setWinePrefix(suggestedWinePrefix)
         setWineVersion(wineVersion || undefined)
       }
     }
     getAppSettings()
   }, [useDefaultSettings])
 
-  const showPrefix = wineVersion?.type !== 'crossover'
+  const showPrefix =
+    wineVersion?.type !== 'crossover' && wineVersion?.type !== 'bottles'
   const showBottle = wineVersion?.type === 'crossover'
+  const showLinuxBottle = wineVersion?.type === 'bottles'
 
   return (
     <>
@@ -104,6 +117,13 @@ export default function WineSelector({
               htmlId="crossoverBottle"
               value={crossoverBottle}
               onChange={(event) => setCrossoverBottle(event.target.value)}
+            />
+          )}
+          {showLinuxBottle && (
+            <BottleSelect
+              wineVersion={wineVersion}
+              selectedBottle={bottlesBottle}
+              setSelectedBottle={setBottlesBottle}
             />
           )}
 

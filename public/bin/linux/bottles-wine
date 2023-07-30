@@ -1,0 +1,16 @@
+#!/bin/sh
+
+
+if [[ -z $FLATPAK_ID ]]; then
+	flatpak_prefix=""
+else
+	flatpak_prefix="flatpak-spawn --host "
+fi
+
+if [[ -n $HGL_FLATPAK_BOTTLES ]]; then
+	sh -c "${flatpak_prefix}flatpak run --command='bottles-cli' com.usebottles.bottles run -b $HGL_BOTTLE_NAME -e \"$1\" $(if [[ $# -ne 1 ]]; then echo "-- \"${@:2}\""; fi)"
+else
+	sh -c "bottles-cli run -b $HGL_BOTTLE_NAME -e \"$1\" $(if [[ $# -ne 1 ]]; then echo "-- \"${@:2}\""; fi)"
+fi
+
+exit $?

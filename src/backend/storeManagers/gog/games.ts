@@ -38,7 +38,13 @@ import {
   InstallProgress
 } from 'common/types'
 import { appendFileSync, existsSync, rmSync } from 'graceful-fs'
-import { gamesConfigPath, isWindows, isMac, isLinux } from '../../constants'
+import {
+  gamesConfigPath,
+  isWindows,
+  isMac,
+  isLinux,
+  bottlesWineBin
+} from '../../constants'
 import {
   configStore,
   installedGamesStore,
@@ -422,6 +428,13 @@ export async function launch(
   const gameSettings = await getSettings(appName)
   const gameInfo = getGameInfo(appName)
 
+  // make sure there's a bottle we can use
+  if (!gameSettings.bottlesBottle) {
+    gameSettings.bottlesBottle = (
+      await GameConfig.get('default').getSettings()
+    ).bottlesBottle
+  }
+
   if (
     !gameInfo.install ||
     !gameInfo.install.install_path ||
@@ -479,6 +492,8 @@ export async function launch(
     ? ['--wrapper', shlex.join(wrappers)]
     : []
 
+  let isBottles = false
+
   if (!isNative(appName)) {
     const {
       success: wineLaunchPrepSuccess,
@@ -513,24 +528,53 @@ export async function launch(
         ? wineExec.replaceAll("'", '')
         : wineExec
 
-    wineFlag = [...getWineFlags(wineBin, wineType, shlex.join(wrappers))]
+    if (wineType === 'bottles') {
+      isBottles = true
+    }
+
+    // Doesn't use wine flags
+    if (!isBottles) {
+      wineFlag = [...getWineFlags(wineBin, wineType, shlex.join(wrappers))]
+    }
   }
 
-  const commandParts = [
-    'launch',
-    gameInfo.install.install_path,
-    ...exeOverrideFlag,
-    gameInfo.app_name,
-    ...wineFlag,
-    '--platform',
-    gameInfo.install.platform.toLowerCase(),
-    ...shlex.split(launchArguments ?? ''),
-    ...shlex.split(gameSettings.launcherArgs ?? '')
-  ]
+  const commandParts = isBottles
+    ? [
+        'launch',
+        gameInfo.install.install_path,
+        ...exeOverrideFlag,
+        gameInfo.app_name,
+        '--no-wine',
+        '--wrapper',
+        shlex.join([...wrappers, bottlesWineBin]),
+        '--platform',
+        gameInfo.install.platform.toLowerCase(),
+        ...shlex.split(launchArguments ?? ''),
+        ...shlex.split(gameSettings.launcherArgs ?? '')
+      ]
+    : [
+        'launch',
+        gameInfo.install.install_path,
+        ...exeOverrideFlag,
+        gameInfo.app_name,
+        ...wineFlag,
+        '--platform',
+        gameInfo.install.platform.toLowerCase(),
+        ...shlex.split(launchArguments ?? ''),
+        ...shlex.split(gameSettings.launcherArgs ?? '')
+      ]
+
+  const bottlesEnv: Record<string, string> = {}
+  if (gameSettings.wineVersion.subtype === 'flatpak') {
+    bottlesEnv.HGL_FLATPAK_BOTTLES = '1'
+  }
+  bottlesEnv.HGL_BOTTLE_NAME = gameSettings.bottlesBottle
+
+  logDebug(['isBottles:', isBottles], { prefix: LogPrefix.Gog })
 
   const fullCommand = getRunnerCallWithoutCredentials(
     commandParts,
-    commandEnv,
+    !isBottles ? commandEnv : bottlesEnv,
     join(...Object.values(getGOGdlBin()))
   )
   appendFileSync(
@@ -542,7 +586,7 @@ export async function launch(
     commandParts,
     createAbortController(appName),
     {
-      env: commandEnv,
+      env: !isBottles ? commandEnv : bottlesEnv,
       wrappers,
       logMessagePrefix: `Launching ${gameInfo.title}`,
       onOutput: (output: string) => {

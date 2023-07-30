@@ -5,7 +5,7 @@ import { ChildProcess } from 'child_process'
 import { HowLongToBeatEntry } from 'howlongtobeat'
 import { NileInstallPlatform } from './types/nile'
 
-export type Runner = 'legendary' | 'gog' | 'sideload' | 'nile'
+export type Runner = 'legendary' | 'gog' | 'sideload' | 'nile' | 'bottles'
 
 // NOTE: Do not put enum's in this module or it will break imports
 
@@ -134,6 +134,7 @@ export interface GameSettings {
   autoInstallVkd3d: boolean
   autoSyncSaves: boolean
   battlEyeRuntime: boolean
+  bottlesBottle: string
   DXVKFpsCap: string //Entered as string but used as number
   eacRuntime: boolean
   enableDXVKFpsLimit: boolean
@@ -230,7 +231,8 @@ export type UserInfo = {
 export interface WineInstallation {
   bin: string
   name: string
-  type: 'wine' | 'proton' | 'crossover' | 'toolkit'
+  type: 'wine' | 'proton' | 'crossover' | 'toolkit' | 'bottles'
+  subtype?: BottlesType
   lib?: string
   lib32?: string
   wineserver?: string
@@ -502,6 +504,8 @@ export type ConnectivityChangedCallback = (
 ) => void
 
 export type ConnectivityStatus = 'offline' | 'check-online' | 'online'
+
+export type BottlesType = 'flatpak' | 'native'
 
 export interface Tools {
   exe?: string

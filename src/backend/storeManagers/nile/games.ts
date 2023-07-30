@@ -319,6 +319,13 @@ export async function launch(
   const gameSettings = await getSettings(appName)
   const gameInfo = getGameInfo(appName)
 
+  // make sure there's a bottle we can use
+  if (!gameSettings.bottlesBottle) {
+    gameSettings.bottlesBottle = (
+      await GameConfig.get('default').getSettings()
+    ).bottlesBottle
+  }
+
   const {
     success: launchPrepSuccess,
     failureReason: launchPrepFailReason,
@@ -359,6 +366,8 @@ export async function launch(
     ? ['--wrapper', shlex.join(wrappers)]
     : []
 
+  let isBottles = false
+
   if (!isNative()) {
     // -> We're using Wine/Proton on Linux or CX on Mac
     const {
@@ -394,24 +403,47 @@ export async function launch(
         ? wineExec.replaceAll("'", '')
         : wineExec
 
-    wineFlag = [
-      ...getWineFlags(wineBin, wineType, shlex.join(wrappers)),
-      '--wine-prefix',
-      gameSettings.winePrefix
-    ]
+    if (wineType === 'bottles') {
+      isBottles = true
+    }
+
+    // Doesn't use wine flags
+    if (!isBottles) {
+      wineFlag = [
+        ...getWineFlags(wineBin, wineType, shlex.join(wrappers)),
+        '--wine-prefix',
+        gameSettings.winePrefix
+      ]
+    }
   }
 
-  const commandParts = [
-    'launch',
-    ...exeOverrideFlag, // Check if this works
-    ...wineFlag,
-    ...shlex.split(launchArguments ?? ''),
-    ...shlex.split(gameSettings.launcherArgs ?? ''),
-    appName
-  ]
+  const commandParts = isBottles
+    ? [
+        'launch',
+        '--bottle',
+        gameSettings.bottlesBottle,
+        '--wrapper',
+        shlex.join(wrappers),
+        appName
+      ]
+    : [
+        'launch',
+        ...exeOverrideFlag, // Check if this works
+        ...wineFlag,
+        ...shlex.split(launchArguments ?? ''),
+        ...shlex.split(gameSettings.launcherArgs ?? ''),
+        appName
+      ]
+
+  const bottlesEnv: Record<string, string> = {}
+  if (gameSettings.wineVersion.subtype === 'flatpak') {
+    bottlesEnv.HGL_FLATPAK_BOTTLES = '1'
+  }
+  bottlesEnv.HGL_BOTTLE_NAME = gameSettings.bottlesBottle
+
   const fullCommand = getRunnerCallWithoutCredentials(
     commandParts,
-    commandEnv,
+    !isBottles ? commandEnv : bottlesEnv,
     join(...Object.values(getNileBin()))
   )
   appendFileSync(
@@ -423,7 +455,7 @@ export async function launch(
     commandParts,
     createAbortController(appName),
     {
-      env: commandEnv,
+      env: !isBottles ? commandEnv : bottlesEnv,
       wrappers,
       logMessagePrefix: `Launching ${gameInfo.title}`,
       onOutput(output) {

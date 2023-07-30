@@ -62,6 +62,7 @@ import { setupUbisoftConnect } from './storeManagers/legendary/setup'
 import { gameManagerMap } from 'backend/storeManagers'
 import * as VDF from '@node-steam/vdf'
 import { readFileSync } from 'fs'
+import { prepareBottlesCommand } from './bottles/utils'
 
 async function prepareLaunch(
   gameSettings: GameSettings,
@@ -502,7 +503,8 @@ export async function validWine(
   const haveAll = necessary.every((binary) => existsSync(binary as string))
 
   // if wine version does not exist, use the default one
-  if (!haveAll) {
+  // ignore missing binary if it's bottles
+  if (!haveAll && type !== 'bottles') {
     return false
   }
 
@@ -525,7 +527,7 @@ export async function verifyWinePrefix(
     return { res: { stdout: '', stderr: '' }, updated: false }
   }
 
-  if (wineVersion.type === 'crossover') {
+  if (wineVersion.type === 'crossover' || wineVersion.type === 'bottles') {
     return { res: { stdout: '', stderr: '' }, updated: false }
   }
 
@@ -584,9 +586,15 @@ async function runWineCommand({
   const settings = gameSettings
     ? gameSettings
     : GlobalConfig.get().getSettings()
-  const { wineVersion, winePrefix } = settings
+  const { wineVersion, winePrefix, bottlesBottle } = settings
 
-  if (!skipPrefixCheckIKnowWhatImDoing && wineVersion.type !== 'crossover') {
+  if (
+    !(
+      skipPrefixCheckIKnowWhatImDoing ||
+      wineVersion.type === 'crossover' ||
+      wineVersion.type === 'bottles'
+    )
+  ) {
     let requiredPrefixFiles = [
       'dosdevices',
       'drive_c',
@@ -633,6 +641,8 @@ async function runWineCommand({
     commandParts.unshift(protonVerb)
   }
 
+  const isBottles = wineVersion.type === 'bottles'
+
   const wineBin = wineVersion.bin.replaceAll("'", '')
 
   logDebug(['Running Wine command:', commandParts.join(' ')], LogPrefix.Backend)
@@ -640,17 +650,46 @@ async function runWineCommand({
   return new Promise<{ stderr: string; stdout: string }>((res) => {
     const wrappers = options?.wrappers || []
     let bin = ''
-    if (wrappers.length) {
-      bin = wrappers.shift()!
-      commandParts.unshift(...wrappers, wineBin)
+    let bottlesCommand: string[] = []
+    if (isBottles) {
+      bottlesCommand = prepareBottlesCommand([], wineVersion.subtype!, false)
+      const bottlesBin = bottlesCommand.shift()!
+
+      if (wrappers.length) {
+        bin = wrappers.shift()!
+        commandParts.unshift(...wrappers, bottlesBin)
+      } else {
+        bin = bottlesBin
+      }
     } else {
-      bin = wineBin
+      if (wrappers.length) {
+        bin = wrappers.shift()!
+        commandParts.unshift(...wrappers, wineBin)
+      } else {
+        bin = wineBin
+      }
     }
 
-    const child = spawn(bin, commandParts, {
-      env: env_vars,
-      cwd: startFolder
-    })
+    const child = isBottles
+      ? spawn(
+          bin,
+          [
+            ...bottlesCommand,
+            'shell',
+            '-b',
+            bottlesBottle,
+            '-i',
+            ...commandParts
+          ],
+          {
+            env: env_vars,
+            cwd: startFolder
+          }
+        )
+      : spawn(bin, commandParts, {
+          env: env_vars,
+          cwd: startFolder
+        })
     child.stdout.setEncoding('utf-8')
     child.stderr.setEncoding('utf-8')
 
@@ -911,6 +950,7 @@ function getRunnerCallWithoutCredentials(
   env: Record<string, string> | NodeJS.ProcessEnv = {},
   runnerPath: string
 ): string {
+  logDebug(['runner environment:', env], { prefix: LogPrefix.Gog })
   const modifiedCommandParts = [...commandParts]
   // Redact sensitive arguments (Authorization Code for Legendary, token for GOGDL)
   for (const sensitiveArg of ['--code', '--token']) {

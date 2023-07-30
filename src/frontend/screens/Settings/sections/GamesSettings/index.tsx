@@ -39,6 +39,7 @@ import { defaultWineVersion } from '../..'
 import Collapsible from 'frontend/components/UI/Collapsible/Collapsible'
 import SyncSaves from '../SyncSaves'
 import FooterInfo from '../FooterInfo'
+import BottleSelect from '../../components/BottleSelect'
 
 type Props = {
   useDetails?: boolean
@@ -49,10 +50,12 @@ export default function GamesSettings({ useDetails = true }: Props) {
   const { platform } = useContext(ContextProvider)
   const { isDefault, gameInfo } = useContext(SettingsContext)
   const [wineVersion] = useSetting('wineVersion', defaultWineVersion)
+  const [bottle] = useSetting('bottlesBottle', '')
   const [nativeGame, setNativeGame] = useState(false)
   const isLinux = platform === 'linux'
   const isWin = platform === 'win32'
   const isCrossover = wineVersion?.type === 'crossover'
+  const isBottles = wineVersion?.type === 'bottles'
   const hasCloudSaves =
     gameInfo?.cloud_save_enabled && gameInfo.install.platform !== 'linux'
 
@@ -91,8 +94,9 @@ export default function GamesSettings({ useDetails = true }: Props) {
             <WineVersionSelector />
             <WinePrefix />
             <CrossoverBottle />
+            <BottleSelect />
 
-            {!isCrossover && (
+            {!isCrossover && !isBottles && (
               <>
                 <AutoDXVK />
                 {isLinux && (
@@ -104,9 +108,28 @@ export default function GamesSettings({ useDetails = true }: Props) {
                     <BattlEyeRuntime />
                   </>
                 )}
-                <Tools />
               </>
             )}
+
+            {isBottles && (
+              <p className="bottles-hint">
+                <FontAwesomeIcon icon={faInfoCircle} />
+                {t(
+                  'settings.bottles.hint',
+                  'You can configure DXVK, VKD3D and more in Bottles UI.'
+                )}
+                <button
+                  onClick={async () =>
+                    window.api.openBottles(wineVersion!.subtype!, bottle)
+                  }
+                  className={`button is-secondary outline`}
+                >
+                  {t('button.open_bottles', 'Open Bottles')}
+                </button>
+              </p>
+            )}
+
+            {!isCrossover && <Tools />}
           </Collapsible>
         </>
       )}
@@ -123,44 +146,47 @@ export default function GamesSettings({ useDetails = true }: Props) {
         <AlternativeExe />
 
         <ShowFPS />
-
-        {!nativeGame && <EnableDXVKFpsLimit />}
-
-        {!isWin && !nativeGame && (
+        {!isBottles && (
           <>
-            <EnableEsync />
+            {!nativeGame && <EnableDXVKFpsLimit />}
 
-            {isLinux && (
+            {!isWin && !nativeGame && (
               <>
-                <EnableFsync />
+                <EnableEsync />
 
-                <PreferSystemLibs />
+                {isLinux && (
+                  <>
+                    <EnableFsync />
 
-                <EnableFSR />
+                    <PreferSystemLibs />
 
-                <GameMode />
+                    <EnableFSR />
+
+                    <GameMode />
+                  </>
+                )}
               </>
             )}
+
+            <UseDGPU />
+
+            {isLinux && <Mangohud />}
+
+            <SteamRuntime />
+
+            <IgnoreGameUpdates />
+
+            <OfflineMode />
+
+            <EnvVariablesTable />
+
+            <WrappersTable />
+
+            <LauncherArgs />
+
+            <PreferedLanguage />
           </>
         )}
-
-        <UseDGPU />
-
-        {isLinux && <Mangohud />}
-
-        <SteamRuntime />
-
-        <IgnoreGameUpdates />
-
-        <OfflineMode />
-
-        <EnvVariablesTable />
-
-        <WrappersTable />
-
-        <LauncherArgs />
-
-        <PreferedLanguage />
       </Collapsible>
 
       {hasCloudSaves && (

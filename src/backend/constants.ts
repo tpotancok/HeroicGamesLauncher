@@ -99,6 +99,9 @@ const patreonPage = 'https://www.patreon.com/heroicgameslauncher'
 const wineprefixFAQ = 'https://wiki.winehq.org/FAQ#Wineprefixes'
 const customThemesWikiLink =
   'https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki/Custom-Themes'
+const bottlesWineBin = fixAsarPath(
+  join(publicDir, 'bin', 'linux', 'bottles-wine')
+)
 
 /**
  * Get shell for different os
@@ -266,5 +269,6 @@ export {
   nileConfigPath,
   nileInstalled,
   nileLibrary,
-  nileUserData
+  nileUserData,
+  bottlesWineBin
 }

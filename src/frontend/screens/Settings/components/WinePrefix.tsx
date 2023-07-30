@@ -20,7 +20,11 @@ const WinePrefix = () => {
     defaultWinePrefix + '/default'
   )
 
-  if (isWin || wineVersion.type === 'crossover') {
+  if (
+    isWin ||
+    wineVersion.type === 'crossover' ||
+    wineVersion.type === 'bottles'
+  ) {
     return <></>
   }
 

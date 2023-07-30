@@ -40,7 +40,8 @@ import {
   gamesConfigPath,
   isLinux,
   isFlatpak,
-  isCLINoGui
+  isCLINoGui,
+  bottlesWineBin
 } from '../../constants'
 import { logError, logInfo, LogPrefix, logsDisabled } from '../../logger/logger'
 import {
@@ -791,6 +792,13 @@ export async function launch(
   const gameSettings = await getSettings(appName)
   const gameInfo = getGameInfo(appName)
 
+  // make sure there's a bottle we can use
+  if (!gameSettings.bottlesBottle) {
+    gameSettings.bottlesBottle = (
+      await GameConfig.get('default').getSettings()
+    ).bottlesBottle
+  }
+
   const {
     success: launchPrepSuccess,
     failureReason: launchPrepFailReason,
@@ -836,6 +844,8 @@ export async function launch(
     ? ['--wrapper', shlex.join(wrappers)]
     : []
 
+  let isBottles = false
+
   if (!isNative(appName)) {
     // -> We're using Wine/Proton on Linux or CX on Mac
     const {
@@ -871,24 +881,51 @@ export async function launch(
         ? wineExec.replaceAll("'", '')
         : wineExec
 
-    wineFlag = [...getWineFlags(wineBin, wineType, shlex.join(wrappers))]
+    if (wineType === 'bottles') {
+      isBottles = true
+    }
+
+    // Doesn't use wine flags
+    if (!isBottles) {
+      wineFlag = [...getWineFlags(wineBin, wineType, shlex.join(wrappers))]
+    }
   }
 
-  const commandParts = [
-    'launch',
-    appName,
-    ...languageFlag,
-    ...exeOverrideFlag,
-    ...offlineFlag,
-    ...wineFlag,
-    ...shlex.split(launchArguments ?? ''),
-    isCLINoGui ? '--skip-version-check' : '',
-    ...shlex.split(gameSettings.launcherArgs ?? '')
-  ]
+  const commandParts = isBottles
+    ? [
+        'launch',
+        appName,
+        ...languageFlag,
+        ...exeOverrideFlag,
+        ...offlineFlag,
+        '--no-wine',
+        '--wrapper',
+        shlex.join([...wrappers, bottlesWineBin]),
+        ...shlex.split(launchArguments ?? ''),
+        isCLINoGui ? '--skip-version-check' : '',
+        ...shlex.split(gameSettings.launcherArgs ?? '')
+      ]
+    : [
+        'launch',
+        appName,
+        ...languageFlag,
+        ...exeOverrideFlag,
+        ...offlineFlag,
+        ...wineFlag,
+        ...shlex.split(launchArguments ?? ''),
+        isCLINoGui ? '--skip-version-check' : '',
+        ...shlex.split(gameSettings.launcherArgs ?? '')
+      ]
+
+  const bottlesEnv: Record<string, string> = {}
+  if (gameSettings.wineVersion.subtype === 'flatpak') {
+    bottlesEnv.HGL_FLATPAK_BOTTLES = '1'
+  }
+  bottlesEnv.HGL_BOTTLE_NAME = gameSettings.bottlesBottle
 
   const fullCommand = getRunnerCallWithoutCredentials(
     commandParts,
-    commandEnv,
+    !isBottles ? commandEnv : bottlesEnv,
     join(...Object.values(getLegendaryBin()))
   )
   appendFileSync(
@@ -900,7 +937,7 @@ export async function launch(
     commandParts,
     createAbortController(appName),
     {
-      env: commandEnv,
+      env: !isBottles ? commandEnv : bottlesEnv,
       wrappers: wrappers,
       logMessagePrefix: `Launching ${gameInfo.title}`,
       onOutput: (output) => {

@@ -7,7 +7,8 @@ import {
   StatusPromise,
   GamepadInputEvent,
   WineCommandArgs,
-  ExecResult
+  ExecResult,
+  WineInstallation
 } from 'common/types'
 import * as path from 'path'
 import {
@@ -116,7 +117,7 @@ import {
 } from './logger/logger'
 import { gameInfoStore } from 'backend/storeManagers/legendary/electronStores'
 import { getFonts } from 'font-list'
-import { runWineCommand, verifyWinePrefix } from './launcher'
+import { runWineCommand, validWine, verifyWinePrefix } from './launcher'
 import shlex from 'shlex'
 import { initQueue } from './downloadmanager/downloadqueue'
 import {
@@ -158,6 +159,7 @@ import {
   getGameOverride,
   getGameSdl
 } from 'backend/storeManagers/legendary/library'
+import { openBottles, runBottlesCommand } from './bottles/utils'
 
 app.commandLine?.appendSwitch('remote-debugging-port', '9222')
 
@@ -594,19 +596,28 @@ async function runWineCommandOnGame(
 // Calls WineCFG or Winetricks. If is WineCFG, use the same binary as wine to launch it to dont update the prefix
 ipcMain.handle('callTool', async (event, { tool, exe, appName, runner }) => {
   const gameSettings = await gameManagerMap[runner].getSettings(appName)
-  const { wineVersion, winePrefix } = gameSettings
+  const { wineVersion, winePrefix, bottlesBottle } = gameSettings
   await verifyWinePrefix(gameSettings)
+
+  logDebug(['Called tool:', tool], { prefix: LogPrefix.Backend })
 
   switch (tool) {
     case 'winetricks':
       await Winetricks.run(wineVersion, winePrefix, event)
       break
     case 'winecfg':
-      runWineCommandOnGame(runner, appName, {
-        gameSettings,
-        commandParts: ['winecfg'],
-        wait: false
-      })
+      if (wineVersion.type === 'bottles') {
+        await runBottlesCommand(
+          ['tools', 'winecfg', '-b', bottlesBottle],
+          wineVersion.subtype!
+        )
+      } else {
+        runWineCommandOnGame(runner, appName, {
+          gameSettings,
+          commandParts: ['winecfg'],
+          wait: false
+        })
+      }
       break
     case 'runExe':
       if (exe) {
@@ -618,6 +629,9 @@ ipcMain.handle('callTool', async (event, { tool, exe, appName, runner }) => {
           startFolder: workingDir
         })
       }
+      break
+    case 'bottles':
+      openBottles(wineVersion.subtype!, bottlesBottle)
       break
   }
 })
@@ -1656,6 +1670,10 @@ ipcMain.handle('pathExists', async (e, path: string) => {
   return existsSync(path)
 })
 
+ipcMain.handle('validWine', async (e, wineVersion: WineInstallation) => {
+  return validWine(wineVersion)
+})
+
 ipcMain.on('processShortcut', async (e, combination: string) => {
   const mainWindow = getMainWindow()
 
@@ -1716,3 +1734,4 @@ import './downloadmanager/ipc_handler'
 import './utils/ipc_handler'
 import './wiki_game_info/ipc_handler'
 import './recent_games/ipc_handler'
+import './bottles/ipc_handler'

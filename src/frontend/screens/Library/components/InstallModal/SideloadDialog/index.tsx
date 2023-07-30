@@ -27,6 +27,7 @@ type Props = {
   availablePlatforms: AvailablePlatforms
   winePrefix: string
   crossoverBottle: string
+  bottlesBottle: string
   wineVersion: WineInstallation | undefined
   setWinePrefix: React.Dispatch<React.SetStateAction<string>>
   children: React.ReactNode
@@ -40,6 +41,7 @@ export default function SideloadDialog({
   backdropClick,
   winePrefix,
   crossoverBottle,
+  bottlesBottle,
   wineVersion,
   platformToInstall,
   setWinePrefix,
@@ -171,7 +173,8 @@ export default function SideloadDialog({
         ...gameSettings,
         winePrefix,
         wineVersion,
-        wineCrossoverBottle: crossoverBottle
+        wineCrossoverBottle: crossoverBottle,
+        bottlesBottle
       }
     })
 
